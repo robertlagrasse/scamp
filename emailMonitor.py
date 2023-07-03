@@ -69,26 +69,29 @@ def send_email(username, app_password, recipient, subject, message, attachment_p
     except Exception as e:
         print(f"An error occurred while sending the email: {e}")
 def process_dataframe(dataframe):
-    dataframe['latitude'] = None
-    dataframe['longitude'] = None
-    dataframe['phone_soc'] = None
-    dataframe['mobile_internet'] = None
-    for index, row in dataframe.iterrows():
-        try:
-            resolver = Geocoder()
-            zipcode = row["zip"]
-            lat, long = resolver.resolve(zipcode)
-            phone_soc, mobile_internet = closest_dc(float(lat),float(long))
-            dataframe.loc[index, 'latitude'] = lat
-            dataframe.loc[index, 'longitude'] = long
-            dataframe.loc[index, 'phone_soc'] = phone_soc
-            dataframe.loc[index, 'mobile_internet'] = mobile_internet
-        except:
-            dataframe.loc[index, 'latitude'] = "-1"
-            dataframe.loc[index, 'longitude'] = "-1"
-            dataframe.loc[index, 'phone_soc'] = "ZSIPV4"
-            dataframe.loc[index, 'mobile_internet'] = "ZSIPV4MI"
-    return dataframe
+    if "zip" in dataframe.columns:
+        dataframe['latitude'] = None
+        dataframe['longitude'] = None
+        dataframe['phone_soc'] = None
+        dataframe['mobile_internet'] = None
+        for index, row in dataframe.iterrows():
+            try:
+                resolver = Geocoder()
+                zipcode = row["zip"]
+                lat, long = resolver.resolve(zipcode)
+                phone_soc, mobile_internet = closest_dc(float(lat),float(long))
+                dataframe.loc[index, 'latitude'] = lat
+                dataframe.loc[index, 'longitude'] = long
+                dataframe.loc[index, 'phone_soc'] = phone_soc
+                dataframe.loc[index, 'mobile_internet'] = mobile_internet
+            except:
+                dataframe.loc[index, 'latitude'] = "-1"
+                dataframe.loc[index, 'longitude'] = "-1"
+                dataframe.loc[index, 'phone_soc'] = "ZSIPV4"
+                dataframe.loc[index, 'mobile_internet'] = "ZSIPV4MI"
+        return dataframe
+    else:
+        return None
 def monitor_gmail(username, app_password):
     try:
         while True:
@@ -116,6 +119,7 @@ def monitor_gmail(username, app_password):
                     # Parse the email content
                     raw_email = data[0][1]
                     msg = email.message_from_bytes(raw_email)
+                    sender = msg["From"]
 
                     # Detect attachments
                     if msg.get_content_maintype() == "multipart":
@@ -143,29 +147,40 @@ def monitor_gmail(username, app_password):
                                 # Read csv and process
                                 df = pd.read_csv(in_file_path)
                                 processed_df = process_dataframe(df)
+                                if processed_df is not None:
+                                    # save returned dataframe to output folder
+                                    save_folder = 'output'
+                                    out_file_path = os.path.join(save_folder, attachment_name)
+                                    processed_df.to_csv(out_file_path)
 
-                                # save returned dataframe to output folder
-                                save_folder = 'output'
-                                out_file_path = os.path.join(save_folder, attachment_name)
-                                processed_df.to_csv(out_file_path)
+                                    # send output.csv to sender
+                                    subject = "SCAMP Analysis"
+                                    message = """
+                                    SCAMP - SOC Calculation And Mapping Program v0.1
+                                    
+                                    SCAMP calculates the distance between the location zip code
+                                    and the Seattle, Philly, and Chicago datacenters, and automatically
+                                    assigns SOC codes based on closest DC location. 
+                                    
+                                    Questions - robert.lagrasse@t-mobile.com
+                                    """
+                                    send_email(username, app_password, sender, subject, message, out_file_path)
 
-                                # send output.csv to sender
-                                sender = msg["From"]
-                                subject = "SCAMP Analysis"
-                                message = """
-                                SCAMP - SOC Calculation And Mapping Program v0.1
-                                
-                                SCAMP calculates the distance between the location zip code
-                                and the Seattle, Philly, and Chicago datacenters, and automatically
-                                assigns SOC codes based on closest DC location. 
-                                
-                                Questions - robert.lagrasse@t-mobile.com
-                                """
-                                send_email(username, app_password, sender, subject, message, out_file_path)
+                                    # delete old files
+                                    os.remove(out_file_path)
+                                else:
+                                    subject = "SCAMP Could not analyze your file"
+                                    message = """
+                                    SCAMP - SOC Calculation And Mapping Program v0.1
 
-                                # delete old files
+                                    There was a problem processing your file.
+                                    Files must be csv formatted and
+                                    contain a column called 'zip' with US postal codes  
+
+                                    Questions - robert.lagrasse@t-mobile.com
+                                    """
+                                    send_email(username, app_password, sender, subject, message, in_file_path)
                                 os.remove(in_file_path)
-                                os.remove(out_file_path)
 
                 # Mark the message as read
                 mail.store(message_id, "+FLAGS", "\\Seen")

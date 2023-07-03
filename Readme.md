@@ -7,6 +7,16 @@ SCAMP automatically maps the right SOC to a physical location.
 ## Release Notes
 ### version 0.1 - "Laziness is the essence of contemplation"
 ### 20230703
+
+## Updates:
+### Error Detection Implemented
+* Files sent without proper formatting will receive an autoresponse indicating an error
+
+# ------------------
+
+
+### version 0.1 - "Laziness is the essence of contemplation"
+### 20230703
 SCAMP is a Midwest Solutions Engineering Skunkworks project.
 
 SCAMP ingests .csv files containing physical locations, and geolocates
