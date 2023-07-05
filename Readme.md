@@ -1,38 +1,63 @@
-# S.C.A.M.P
-## SOC Calculation And Mapping Program
-SCAMP automatically maps the right SOC to a physical location.
+# SCAMP Installation
+
+## Clone the git repo: 
+https://github.com/robertlagrasse/scamp.git
+
+## Create Authentication File
+sudo nano /path/to/scamp/creds/creds.json
+
+Contents of creds.json file:
+{
+  "username": "your.gmail.id@gmail.com",
+  "password": "your app password"
+}
 
 
-
-## Release Notes
-### version 0.1 - "Laziness is the essence of contemplation"
-### 20230703
-
-## Updates:
-### Error Detection Implemented
-* Files sent without proper formatting will receive an autoresponse indicating an error
-
-# ------------------
+## Create a service
+SCAMP is written in Python. While it's possible to run SCAMP from the command line, the preferred
+deployment option is as a service. 
 
 
-### version 0.1 - "Laziness is the essence of contemplation"
-### 20230703
-SCAMP is a Midwest Solutions Engineering Skunkworks project.
+### Create a service file for SCAMP
+sudo nano /etc/systemd/system/scamp.service
 
-SCAMP ingests .csv files containing physical locations, and geolocates
-those locations using zip code. Your data must contain a column
-named 'zip', and that column must contain US zip codes. 
+The contents of the scamp.service file:
 
-It can receive multiple input files in a single email, processing and returning each in a separate email.
+[Unit]
 
-Very little in the way of error and file handling in this release.
+Description=Scamp Service
 
-## Immediate Task:
-* Find a home for the script to run
+After=network.target
 
-### Follow on Tasks (unordered):
-* error detection replies via email with instructions
-* ingest xlsx
-* flexibility in zipcode inputs (variations on column name, GPT column validation/preprocessing?)
-* break file processing operations into a separate class
-* * thread/background process (non-blocking operation
+[Service]
+ExecStart=/bin/bash /path/to/scamp/scamp.sh
+
+WorkingDirectory=/path/to/scamp
+
+Restart=always
+
+RestartSec=3
+
+User= (your username)
+
+[Install]
+
+WantedBy=multi-user.target`
+
+
+### Enable and start the service
+sudo systemctl enable scamp
+
+sudo systemctl start scamp
+
+### Stopping, starting and monitoring the service
+Standard systemctl commands apply here
+* sudo systemctl restart scamp.service
+* sudo systemctl start scamp.service
+* sudo systemctl stop scamp.service
+* systemctl status scamp.service
+
+# What actually happens
+When the service is started, it kicks off a bash script called scamp.sh.
+That script installs any needed dependencies, ensures the proper directories
+are in place, and starts the emailMonitor.py script that 
