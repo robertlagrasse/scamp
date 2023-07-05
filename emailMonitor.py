@@ -13,6 +13,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+import logging
+logging.basicConfig(filename='scamp.log', encoding='utf-8', level=logging.INFO)
 
 # Gmail SMTP server details
 SMTP_SERVER = "smtp.gmail.com"
@@ -31,6 +33,7 @@ def send_email(username, app_password, recipient, subject, message, attachment_p
         msg["To"] = recipient
         msg["Subject"] = subject
 
+        logging.info(f"{time.time()}: send_email {recipient} {attachment_path}")
         # Add message body
         msg.attach(MIMEText(message, "plain"))
 
@@ -64,12 +67,14 @@ def send_email(username, app_password, recipient, subject, message, attachment_p
         # Disconnect from the server
         server.quit()
 
-        print("Email sent successfully.")
+        logging.info(f"{time.time()}: send_email {recipient} successful")
 
     except Exception as e:
-        print(f"An error occurred while sending the email: {e}")
+        logging.info(f"{time.time()}: send_email {recipient} failed: {e}")
 def process_dataframe(dataframe):
+    logging.info(f"{time.time()}: process_dataframe()")
     if "zip" in dataframe.columns:
+        logging.info(f"{time.time()}: process_dataframe(): Headers OK")
         dataframe['latitude'] = None
         dataframe['longitude'] = None
         dataframe['phone_soc'] = None
@@ -89,16 +94,18 @@ def process_dataframe(dataframe):
                 dataframe.loc[index, 'longitude'] = "-1"
                 dataframe.loc[index, 'phone_soc'] = "ZSIPV4"
                 dataframe.loc[index, 'mobile_internet'] = "ZSIPV4MI"
+        logging.info(f"{time.time()}: process_dataframe(): Complete. Returning Dataframe")
         return dataframe
     else:
+        logging.info(f"{time.time()}: process_dataframe(): Headers Check Failed. Returning None")
         return None
 def monitor_gmail(username, app_password):
+    logging.info(f"{time.time()}: monitor_gmail(): Started")
     try:
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
+        mail.login(username, app_password)
+        logging.info(f"{time.time()}: monitor_gmail(): Logged into gmail")
         while True:
-            # Connect to the IMAP server
-            mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
-            mail.login(username, app_password)
-
             # Search for unread messages
             mail.select("inbox")
             result, data = mail.search(None, "UNSEEN")
@@ -107,9 +114,9 @@ def monitor_gmail(username, app_password):
             message_ids = data[0].split()
 
             if not message_ids:
-                print("No new messages.")
+                logging.info(f"{time.time()}: monitor_gmail(): No new messages.")
             else:
-                print(f"Found {len(message_ids)} new message(s).")
+                logging.info(f"{time.time()}: monitor_gmail(): Found {len(message_ids)} new message(s).")
 
             for message_id in message_ids:
                 # Fetch the message data
@@ -120,24 +127,25 @@ def monitor_gmail(username, app_password):
                     raw_email = data[0][1]
                     msg = email.message_from_bytes(raw_email)
                     sender = msg["From"]
+                    logging.info(f"{time.time()}: monitor_gmail(): From: {sender}")
 
                     # Detect attachments
                     if msg.get_content_maintype() == "multipart":
-                        print("Message has attachment")
+                        logging.info(f"{time.time()}: monitor_gmail(): Message has attachment")
                         for part in msg.walk():
                             content_type = part.get_content_type()
 
                             # Check if the attachment is a spreadsheet (CSV or XLSX)
                             if content_type == "text/csv" or content_type == "application/vnd.ms-excel" or content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
                                 attachment_name = part.get_filename()
-                                print(f"Attachment Name: {attachment_name}")
+                                logging.info(f"{time.time()}: monitor_gmail(): {attachment_name} is valid type")
 
                                 # Save the spreadsheet file
                                 save_folder = 'input'
                                 in_file_path = os.path.join(save_folder, attachment_name)
                                 with open(in_file_path, "wb") as f:
                                     f.write(part.get_payload(decode=True))
-                                print(f"Saved attachment: {attachment_name}")
+                                    logging.info(f"{time.time()}: monitor_gmail(): {attachment_name} saved")
 
                                 # Process the spreadsheet
 
@@ -145,13 +153,17 @@ def monitor_gmail(username, app_password):
                                 # Build a class to handle tasks from here until end of loop
 
                                 # Read csv and process
+                                logging.info(f"{time.time()}: monitor_gmail(): sending {attachment_name} to process_df()")
                                 df = pd.read_csv(in_file_path)
                                 processed_df = process_dataframe(df)
                                 if processed_df is not None:
                                     # save returned dataframe to output folder
+                                    logging.info(f"{time.time()}: monitor_gmail(): processed dataframe returned")
                                     save_folder = 'output'
                                     out_file_path = os.path.join(save_folder, attachment_name)
                                     processed_df.to_csv(out_file_path)
+                                    logging.info(f"{time.time()}: monitor_gmail(): {out_file_path} saved")
+
 
                                     # send output.csv to sender
                                     subject = "SCAMP Analysis"
@@ -164,10 +176,13 @@ def monitor_gmail(username, app_password):
                                     
                                     Questions - robert.lagrasse@t-mobile.com
                                     """
+                                    logging.info(f"{time.time()}: monitor_gmail(): sending to send_email()")
                                     send_email(username, app_password, sender, subject, message, out_file_path)
 
                                     # delete old files
                                     os.remove(out_file_path)
+                                    logging.info(f"{time.time()}: monitor_gmail(): deleted {out_file_path}")
+
                                 else:
                                     subject = "SCAMP Could not analyze your file"
                                     message = """
@@ -179,21 +194,21 @@ def monitor_gmail(username, app_password):
 
                                     Questions - robert.lagrasse@t-mobile.com
                                     """
+                                    logging.info(f"{time.time()}: monitor_gmail(): Sending error message email")
                                     send_email(username, app_password, sender, subject, message, in_file_path)
                                 os.remove(in_file_path)
+                                logging.info(f"{time.time()}: monitor_gmail(): deleted {in_file_path}")
 
                 # Mark the message as read
                 mail.store(message_id, "+FLAGS", "\\Seen")
-            mail.logout()
+                logging.info(f"{time.time()}: monitor_gmail(): updated mailbox (email flagged as seen)")
             time.sleep(10)
-
     except Exception as e:
-        print(f"An error occurred: {e}")
-
+        logging.info(f"{time.time()}: monitor_gmail(): An error occurred: {e}")
     finally:
         # Close the connection
-        mail.logout()
-
+        logging.info(f"{time.time()}: monitor_gmail(): logged out of gmail")
+        mail.close()
 
 # Get the username and app password
 with open("creds/creds.json", "r") as file:

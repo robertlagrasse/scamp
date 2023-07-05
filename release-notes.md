@@ -2,6 +2,14 @@
 ## SOC Calculation And Mapping Program
 SCAMP automatically maps the right SOC to a physical location.
 
+## Release Notes
+### version 0.11 - "Laziness is the mother of all productivity hacks"
+### 02030705
+
+* SCAMP now uses the logging library to create logfiles.
+* updated requirements.txt
+
+# -----------------
 
 
 ## Release Notes

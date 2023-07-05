@@ -17,9 +17,13 @@ fi
 # Create the input and output directories if they don't exist
 input_dir="input"
 output_dir="output"
+log_dir="logs"
+creds_dir="creds"
 
 mkdir -p "$input_dir"
 mkdir -p "$output_dir"
+mkdir -p "$log_dir"
+mkdir -p "$creds_dir"
 
 # Ensure the input directory is empty
 if [ "$(ls -A $input_dir)" ]; then
