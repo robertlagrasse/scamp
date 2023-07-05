@@ -5,6 +5,18 @@ SCAMP automatically maps the right SOC to a physical location.
 
 
 ## Release Notes
+### version 0.11 - "Laziness is the mother of all productivity hacks"
+### 02030705
+
+* SCAMP now lives on GCP, running as a service on a VM
+* Install docs created to document service creation process
+* bash script created to ensure smooth launch (dependencies and directories)
+
+
+# -----------------
+
+
+
 ### version 0.1 - "Laziness is the essence of contemplation"
 ### 20230703
 
