@@ -14,7 +14,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import logging
-logging.basicConfig(filename='scamp.log', encoding='utf-8', level=logging.INFO)
+logging.basicConfig(filename='logs/scamp.log', encoding='utf-8', level=logging.INFO)
 
 # Gmail SMTP server details
 SMTP_SERVER = "smtp.gmail.com"
